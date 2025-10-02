@@ -247,6 +247,3 @@ joblib.dump(best_model, 'best_model_engine.pkl')
 print('\n✅ Modelo salvo: best_model_engine.pkl')
 ```
 
-### Observação
-Este notebook é um **README interativo** — ele documenta o passo a passo e permite executar o código. Se desejar, posso também gerar uma versão em PDF com explicações e resultados para anexar ao trabalho.
-
