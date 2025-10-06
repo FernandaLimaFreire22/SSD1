@@ -1,16 +1,17 @@
 # README — Classificação da Condição do Motor
 
-Este notebook serve como **README / guia de execução** do projeto. Ele contém uma breve descrição das etapas e o código completo para reproduzir a análise e os modelos usados (baseline, regressão logística, Random Forest, otimização por GridSearch, SMOTE, XGBoost e LightGBM), exatamente conforme o script final fornecido.
+O objetivo deste projeto é desenvolver um Mínimo Produto Viável (MVP) para um problema de classificação, aplicando técnicas de machine learning em um contexto de manutenção preditiva.
 
-### Como usar
-1. Faça upload deste notebook no Google Colab.
-2. Execute as células em ordem (ou `Runtime > Run all`).
-3. O notebook baixa o dataset direto do repositório e gera saídas e gráficos.
+A tarefa consiste em prever a condição de motores (0 = ruim, 1 = bom) com base em variáveis medidas por sensores, como pressão do óleo, pressão do combustível, pressão do fluido de arrefecimento, temperaturas e rotações por minuto (RPM).
 
-Se quiser, copie e cole partes do código no seu notebook principal — aqui o objetivo é servir como documentação e guia para quem for rodar o projeto.
+Esse tipo de solução pode auxiliar empresas na tomada de decisões de manutenção, reduzindo falhas inesperadas e otimizando custos operacionais.
+
+Hipótese
+
+As variáveis coletadas pelos sensores dos motores contêm informações suficientes para prever corretamente se o motor se encontra em boa condição (1) ou em má condição (0).
 
 ## 1) Configuração inicial e imports
-As bibliotecas abaixo são necessárias para rodar o projeto. Se alguma não estiver instalada (ex.: `xgboost`, `lightgbm`, `imblearn`), instale via `pip install` no Colab.
+As bibliotecas abaixo são necessárias para rodar o projeto.
 
 ```python
 import numpy as np
@@ -65,6 +66,10 @@ print(df['Engine Condition'].value_counts(normalize=True) * 100)
 
 ## 3) Análise exploratória (gráficos rápidos)
 
+Esses gráficos permitem visualizar como cada variável numérica do motor está distribuída. Observamos que algumas variáveis, como Engine rpm, apresentam uma distribuição mais concentrada, enquanto outras, como pressões e temperaturas, têm distribuições multimodais, sugerindo que existem diferentes condições de operação ou registros anômalos. Essa análise é importante porque ajuda a identificar padrões, possíveis outliers e diferenças de comportamento entre regimes de funcionamento do motor, o que pode impactar na detecção de falhas ou na previsão da condição do motor.
+
+A matriz de correlação mostra que, no conjunto de dados, a maior parte das variáveis não apresenta relação linear significativa entre si. A única correlação mais perceptível é entre a rotação do motor (Engine rpm) e a condição do motor (Engine Condition), que aparece como uma correlação negativa fraca (-0,27). Isso sugere que, conforme a rotação aumenta, a condição do motor pode tender a se deteriorar levemente, enquanto as demais variáveis analisadas se comportam de forma praticamente independente.
+
 ```python
 num_cols = df.select_dtypes(include=['int64','float64']).columns.tolist()
 if 'Engine Condition' in num_cols:
@@ -85,6 +90,7 @@ plt.show()
 ```
 
 ## 4) Preparação dos dados e split
+O dataset foi dividido em dois subconjuntos: 80% dos dados (15.628 registros) foram reservados para treinar o modelo e 20% (3.907 registros) para testá-lo. Essa separação garante que o modelo seja avaliado em dados que ele nunca viu, permitindo verificar sua capacidade de generalização. Além disso, o uso de estratificação assegura que a distribuição das classes da variável alvo seja mantida tanto no treino quanto no teste.
 
 ```python
 print('Duplicados:', df.duplicated().sum())
@@ -102,6 +108,7 @@ print('Distribuição teste:', y_test.value_counts(normalize=True))
 ```
 
 ## 5) Baseline (DummyClassifier)
+O modelo baseline alcançou 63% de acurácia simplesmente por prever sempre a classe mais frequente (classe 1). No entanto, ele falhou totalmente em identificar a classe 0, resultando em precisão, recall e f1-score iguais a 0 para essa categoria. Isso mostra que, apesar da acurácia parecer razoável, o modelo não é útil para distinguir as classes. Assim, o baseline serve apenas como referência inicial para compararmos modelos mais sofisticados, que precisam superar esse desempenho trivial.
 
 ```python
 baseline = DummyClassifier(strategy='most_frequent', random_state=RANDOM_STATE)
@@ -113,6 +120,9 @@ print(classification_report(y_test, y_pred_base))
 ```
 
 ## 6) Modelos iniciais: Regressão Logística e Random Forest
+Foi treinado um modelo de Regressão Logística, que é um algoritmo de classificação linear. O pipeline aplicou uma padronização das variáveis antes do treino e, em seguida, o modelo foi avaliado no conjunto de teste. Ele alcançou 64,6% de acurácia, superando o baseline de 63%, o que indica que conseguiu extrair alguma informação útil dos dados. No entanto, como o ganho foi pequeno, isso sugere a necessidade de testar algoritmos mais robustos (como Random Forest ou XGBoost) e aplicar técnicas para lidar com o desbalanceamento de classes, a fim de melhorar a capacidade preditiva do modelo.
+
+O modelo de Random Forest alcançou 64,4% de acurácia, um resultado muito próximo ao da Regressão Logística (64,6%) e apenas ligeiramente superior ao baseline (63%). Isso mostra que, até o momento, os modelos testados não estão conseguindo separar bem as classes, possivelmente devido ao desbalanceamento ou à falta de variáveis mais discriminativas. Assim, seria interessante explorar técnicas de balanceamento de classes, ajustes de hiperparâmetros e a inclusão de algoritmos adicionais para tentar melhorar a performance preditiva.
 
 ```python
 # Regressão Logística
@@ -145,6 +155,7 @@ plt.show()
 ```
 
 ## 7) Otimização (GridSearch) para Random Forest
+O Random Forest otimizado conseguiu uma boa taxa de acerto para os motores bons (classe 1), mas teve dificuldade em identificar corretamente os motores ruins (classe 0). Isso aconteceu porque os dados estão desbalanceados (muito mais exemplos de motores bons do que ruins), e o modelo tende a “aprender” mais sobre a classe majoritária.
 
 ```python
 param_grid = {
@@ -169,6 +180,7 @@ plt.show()
 ```
 
 ## 8) Balanceamento e modelos avançados (SMOTE + XGBoost/LightGBM)
+O log do LightGBM mostra que, após aplicarmos o SMOTE, as classes ficaram balanceadas (aprox. 50% bons e 50% ruins). O modelo então inicia o treinamento de forma justa entre as classes e escolhe automaticamente a melhor forma de paralelizar os cálculos para acelerar o processo. Isso confirma que o balanceamento foi aplicado corretamente e que o algoritmo está rodando como esperado.
 
 ```python
 from imblearn.over_sampling import SMOTE
@@ -202,6 +214,7 @@ pipe_lgbm.fit(X_train, y_train)
 ```
 
 ## 9) Comparação entre modelos com validação cruzada
+A comparação mostrou que a Regressão Logística foi o modelo mais eficiente, superando inclusive técnicas mais complexas como Random Forest, XGBoost e LightGBM com SMOTE. O melhor F1 médio foi 0.759, enquanto o pior foi 0.669, uma diferença significativa. Isso indica que os algoritmos mais avançados não conseguiram superar o modelo simples e que ainda existe espaço para melhorar, seja ajustando melhor os hiperparâmetros, testando outras formas de balanceamento ou explorando mais variáveis.
 
 ```python
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
@@ -239,6 +252,8 @@ if melhor - pior < 0.05:
 else:
     print("👉 Houve diferença significativa entre os modelos → ainda há espaço para melhorar.")
 ```
+
+O modelo otimizado apresenta um desempenho muito bom nos dados de treino (77,6%), mas seu desempenho cai para 65,6% nos dados de teste. A diferença de aproximadamente 12 pontos indica que o modelo pode estar sofrendo overfitting, ou seja, está ajustado demais aos dados de treino e não generaliza tão bem para dados novos. Para melhorar, podemos considerar técnicas como regularização, poda do modelo, coleta de mais dados ou validação cruzada para reduzir o overfitting.
 
 ## 10) Salvar modelo final
 
