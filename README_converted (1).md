@@ -253,9 +253,24 @@ else:
     print("👉 Houve diferença significativa entre os modelos → ainda há espaço para melhorar.")
 ```
 
+## 10) Análise de Overffiting do melhor modelo
 O modelo otimizado apresenta um desempenho muito bom nos dados de treino (77,6%), mas seu desempenho cai para 65,6% nos dados de teste. A diferença de aproximadamente 12 pontos indica que o modelo pode estar sofrendo overfitting, ou seja, está ajustado demais aos dados de treino e não generaliza tão bem para dados novos. Para melhorar, podemos considerar técnicas como regularização, poda do modelo, coleta de mais dados ou validação cruzada para reduzir o overfitting.
 
-## 10) Salvar modelo final
+```python
+train_score = best_model.score(X_train, y_train)
+test_score = best_model.score(X_test, y_test)
+
+print("\n--- Análise de Overfitting (Modelo Otimizado) ---")
+print(f"Pontuação no conjunto de Treino: {train_score:.3f}")
+print(f"Pontuação no conjunto de Teste:  {test_score:.3f}")
+
+if train_score > test_score + 0.1:
+    print("\n⚠️ Alerta: Diferença significativa entre treino e teste. Pode haver overfitting.")
+else:
+    print("\n✅ O modelo parece ter uma boa generalização.")
+```
+
+## 11) Salvar modelo final
 
 ```python
 joblib.dump(best_model, 'best_model_engine.pkl')
